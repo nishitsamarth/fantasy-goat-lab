@@ -103,6 +103,37 @@ roster can reach 17–0, while ordinary drafts remain well below perfect. The
 repeatable calibration harness is available in
 [`scripts/simulate-drafts.mjs`](scripts/simulate-drafts.mjs).
 
+### Calibration results
+
+The final validation ran 1,000 drafts for each representative configuration.
+`Random top-five` chooses randomly from the five strongest legal choices;
+`Strong` greedily takes the highest-scoring legal choice.
+
+| Configuration | Strategy | Average wins | Observed range |
+| --- | --- | ---: | ---: |
+| Standard 1QB | Random top-five | 2.13 | 0–9 |
+| Standard 1QB | Strong | 6.28 | 2–12 |
+| Standard 1QB | Optimizer | 7.88–8.09 | 4–14 |
+| PPR 1QB | Random top-five | 1.56 | 0–8 |
+| PPR 1QB | Strong | 6.38 | 2–13 |
+| PPR 1QB | Optimizer | 7.55–7.57 | 2–14 |
+| Half-PPR Superflex | Random top-five | 1.45 | 0–9 |
+| Half-PPR Superflex | Strong | 6.27 | 2–12 |
+| Half-PPR Superflex | Optimizer | 7.62–7.66 | 2–14 |
+| TE Premium 1QB | Random top-five | 1.45 | 0–9 |
+| TE Premium 1QB | Strong | 6.36 | 1–14 |
+| TE Premium 1QB | Optimizer | 7.42–7.47 | 2–14 |
+
+Across the four strong-strategy runs, approximately 4.5–7.9% finished with
+0–3 wins, 47.6–52.0% with 4–6, 35.1–39.1% with 7–9, 4.4–7.5% with 10–12, and
+0–0.3% with 13–17. No ordinary 1,000-draft batch produced 17–0; that result is
+reserved for much rarer elite historical combinations.
+
+The current model intentionally makes perfect seasons exceptional, but these
+results also show that it is the harshest of the three GOAT Lab models. A future
+calibration pass may lower the scoring centers slightly if real-player feedback
+shows that competent drafts feel insufficiently rewarded.
+
 ## Scoring rules
 
 - **Standard:** nflverse standard fantasy points.
