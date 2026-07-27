@@ -32,6 +32,9 @@ The result includes:
 - biggest missed selection;
 - a share action for the final result.
 
+A roster contains each real player at most once. Different seasons of the same
+player cannot occupy multiple slots.
+
 ### Historical season comparison
 
 Compare two player-seasons under Standard, Half-PPR, PPR, or TE Premium
@@ -65,7 +68,7 @@ This MVP does not secretly assign random wins.
 
 For every week represented in the selected player-seasons, the app:
 
-1. aligns each player's actual fantasy output by NFL week;
+1. aligns each player's actual fantasy output across Weeks 1–17;
 2. sums the active lineup;
 3. converts that score to win probability with a logistic scoring curve;
 4. uses a different center for 1QB and Superflex;
@@ -93,6 +96,12 @@ The optimizer receives the exact same ordered team/year draws and uses dynamic
 programming to solve the highest-scoring full-roster assignment across every
 draw and open slot. It uses the same scoring and roster settings. That makes the
 comparison about both player evaluation and positional strategy—not luck.
+
+The 17-week model and 12-point curve width were validated against randomized,
+strong-user, optimizer, and elite historical lineups. A unique-player all-time
+roster can reach 17–0, while ordinary drafts remain well below perfect. The
+repeatable calibration harness is available in
+[`scripts/simulate-drafts.mjs`](scripts/simulate-drafts.mjs).
 
 ## Scoring rules
 
@@ -177,6 +186,9 @@ pnpm lint
 pnpm build
 pnpm test
 ```
+
+`pnpm build` produces native Next.js output for Vercel. `pnpm build:sites`
+produces the Vinext/Cloudflare artifact used by the alternate Sites deployment.
 
 ## Privacy and cost
 

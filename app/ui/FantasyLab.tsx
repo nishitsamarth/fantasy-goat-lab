@@ -128,11 +128,11 @@ function recordCenter(scoring: Scoring, mode: RosterMode) {
 }
 
 function expectedRecord(entries: Season[], scoring: Scoring, mode: RosterMode) {
-  const totals = Array.from({ length: 18 }, (_, index) => entries.reduce((sum, entry) => {
+  const totals = Array.from({ length: 17 }, (_, index) => entries.reduce((sum, entry) => {
     return sum + (weekPoints(entry, scoring).find((item) => item.week === index + 1)?.value ?? 0);
   }, 0)).filter((value) => value > 0);
   const center = recordCenter(scoring, mode);
-  const expectedWins = totals.reduce((sum, total) => sum + 1 / (1 + Math.exp(-(total - center) / 15)), 0);
+  const expectedWins = totals.reduce((sum, total) => sum + 1 / (1 + Math.exp(-(total - center) / 12)), 0);
   return {
     wins: Math.max(0, Math.min(totals.length, Math.round(expectedWins))),
     games: totals.length,
@@ -168,12 +168,14 @@ function SpinDraft({ seasons }: { seasons: Season[] }) {
 
   const choices = useMemo(() => {
     if (!currentDraw) return [];
+    const draftedNames = new Set(Object.values(picks).map((entry) => entry.name));
     return seasons
       .filter((entry) =>
         entry.season === currentDraw.season &&
-        entry.team === currentDraw.team)
+        entry.team === currentDraw.team &&
+        !draftedNames.has(entry.name))
       .sort((a, b) => getStats(b, scoring).total - getStats(a, scoring).total);
-  }, [currentDraw, seasons, scoring]);
+  }, [currentDraw, seasons, scoring, picks]);
 
   const spin = (isReroll = false) => {
     if (!drawPool.length) return;
@@ -204,6 +206,7 @@ function SpinDraft({ seasons }: { seasons: Season[] }) {
         slots.forEach((slot, slotIndex) => {
           if (mask & (1 << slotIndex)) return;
           available.filter((entry) => slot.eligible.includes(entry.position)).forEach((entry) => {
+            if (state.assignments.some((assignment) => assignment.entry.name === entry.name)) return;
             const nextMask = mask | (1 << slotIndex);
             const score = state.score + getStats(entry, scoring).total;
             if (!next.has(nextMask) || next.get(nextMask)!.score < score) {
@@ -276,9 +279,9 @@ function SpinDraft({ seasons }: { seasons: Season[] }) {
         </div>
       </div> :
       <div className="draft-results">
-        <div className="record-card yours"><span>YOUR PROJECTED RECORD</span><strong>{yours?.wins}–{(yours?.games ?? 0) - (yours?.wins ?? 0)}</strong><small>{yours?.average.toFixed(1)} points per week · {recordCenter(scoring, mode)}-point midpoint</small></div>
+        <div className="record-card yours"><span>{yours?.wins === 17 ? "PERFECT SEASON" : "YOUR PROJECTED RECORD"}</span><strong>{yours?.wins}–{(yours?.games ?? 0) - (yours?.wins ?? 0)}</strong><small>{yours?.average.toFixed(1)} points per week · {recordCenter(scoring, mode)}-point midpoint</small></div>
         <div className="efficiency"><span>DRAFT EFFICIENCY</span><strong>{efficiency}%</strong><p>The optimizer solved the best full-roster assignment across your exact sequence of spins—not just the best isolated player in each round.</p></div>
-        <div className="record-card optimum"><span>OPTIMAL PROJECTED RECORD</span><strong>{best?.wins}–{(best?.games ?? 0) - (best?.wins ?? 0)}</strong><small>{best?.average.toFixed(1)} points per week</small></div>
+        <div className="record-card optimum"><span>{best?.wins === 17 ? "PERFECT OPTIMAL SEASON" : "OPTIMAL PROJECTED RECORD"}</span><strong>{best?.wins}–{(best?.games ?? 0) - (best?.wins ?? 0)}</strong><small>{best?.average.toFixed(1)} points per week</small></div>
         <div className="combo-compare">
           <div><span className="eyebrow">YOUR ROSTER</span>{slots.map((slot) => <div className="combo-row" key={`you-${slot.key}`}><span>{slot.label}</span><b>{picks[slot.key]?.name}</b><small>{picks[slot.key]?.season} {picks[slot.key]?.team}</small></div>)}</div>
           <div><span className="eyebrow">PERFECT COMBO</span>{slots.map((slot) => {
@@ -310,15 +313,15 @@ function LineupLab({ seasons, scoring }: { seasons: Season[]; scoring: Scoring }
     slotsFor(nextMode).forEach((slot) => {
       const choices = slot.eligible.flatMap((position) => candidateMap[position] ?? [])
         .sort((a, b) => getStats(b, scoring).total - getStats(a, scoring).total);
-      const pick = choices.find((entry) => !used.has(entry.id));
-      if (pick) { next[slot.key] = pick.id; used.add(pick.id); }
+      const pick = choices.find((entry) => !used.has(entry.name));
+      if (pick) { next[slot.key] = pick.id; used.add(pick.name); }
     });
     return next;
   };
   const [lineup, setLineup] = useState<Record<string, string>>(() => makeLineup("classic"));
 
   const selected = Object.values(lineup).map((id) => seasons.find((entry) => entry.id === id)).filter(Boolean) as Season[];
-  const totals = Array.from({ length: 18 }, (_, index) => selected.reduce((sum, entry) => {
+  const totals = Array.from({ length: 17 }, (_, index) => selected.reduce((sum, entry) => {
     return sum + (weekPoints(entry, scoring).find((item) => item.week === index + 1)?.value ?? 0);
   }, 0)).filter((value) => value > 0);
   const average = totals.reduce((sum, value) => sum + value, 0) / Math.max(totals.length, 1);
@@ -343,7 +346,12 @@ function LineupLab({ seasons, scoring }: { seasons: Season[]; scoring: Scoring }
       <div className="lineup-grid">
         <div className="roster">
           {slots.map((slot) => {
+            const namesInOtherSlots = new Set(Object.entries(lineup)
+              .filter(([key]) => key !== slot.key)
+              .map(([, id]) => seasons.find((entry) => entry.id === id)?.name)
+              .filter(Boolean));
             const choices = slot.eligible.flatMap((position) => candidateMap[position] ?? [])
+              .filter((entry) => !namesInOtherSlots.has(entry.name))
               .sort((a, b) => getStats(b, scoring).total - getStats(a, scoring).total);
             return <label className="roster-row" key={slot.key}><span>{slot.label}</span>
               <select value={lineup[slot.key] ?? ""} onChange={(event) => setLineup((current) => ({ ...current, [slot.key]: event.target.value }))}>
