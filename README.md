@@ -8,7 +8,7 @@ combines a randomized team/year draft, an optimizer that receives the exact same
 draws, historical player-season comparisons, and a free-build lineup lab using
 real weekly results from 1999 onward.
 
-**Live site:** [fantasy-goat-lab.nishitsamarth.chatgpt.site](https://fantasy-goat-lab.nishitsamarth.chatgpt.site)
+**Live site:** [fantasy-goat-lab.vercel.app](https://fantasy-goat-lab.vercel.app)
 
 ## What it does
 
