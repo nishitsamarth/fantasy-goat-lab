@@ -64,6 +64,10 @@ supports:
 
 ## Record model
 
+### Postgame film
+
+Every completed spin draft includes a deterministic coaching report. It identifies the roster’s strongest season, weakest positional group, and costliest decision by comparing the user’s selection with the optimizer’s assignment from that exact team-season spin. The report also translates the roster gap into projected wins and a concise verdict. It runs entirely in the browser without generated text or a paid API.
+
 This MVP does not secretly assign random wins.
 
 For every week represented in the selected player-seasons, the app:

@@ -140,6 +140,42 @@ function expectedRecord(entries: Season[], scoring: Scoring, mode: RosterMode) {
   };
 }
 
+function nflCoach(
+  picks: Record<string, Season>,
+  draws: Draw[],
+  optimal: Array<{ entry: Season; slotKey: string }>,
+  slots: ReturnType<typeof slotsFor>,
+  scoring: Scoring,
+  yours: ReturnType<typeof expectedRecord>,
+  best: ReturnType<typeof expectedRecord>,
+) {
+  const pickedEntries = Object.values(picks);
+  const strongest = [...pickedEntries].sort((a, b) => b.percentile - a.percentile)[0];
+  const weakest = [...pickedEntries].sort((a, b) => a.percentile - b.percentile)[0];
+  const regrets = draws.map((draw) => {
+    const user = pickedEntries.find((entry) => entry.team === draw.team && entry.season === draw.season);
+    const alternative = optimal.find(({ entry }) => entry.team === draw.team && entry.season === draw.season)?.entry;
+    return { user, alternative, gap: user && alternative ? getStats(alternative, scoring).total - getStats(user, scoring).total : 0 };
+  }).filter((item) => item.user && item.alternative).sort((a, b) => b.gap - a.gap);
+  const regret = regrets[0];
+  const positionAverages = (["QB", "RB", "WR", "TE"] as Position[]).map((position) => {
+    const group = pickedEntries.filter((entry) => entry.position === position);
+    return { position, value: group.reduce((sum, entry) => sum + entry.percentile, 0) / Math.max(group.length, 1), count: group.length };
+  }).filter((item) => item.count).sort((a, b) => a.value - b.value);
+  const thinPosition = positionAverages[0];
+  const winsCost = Math.max(0, best.wins - yours.wins);
+  const slot = regret?.user ? slots.find((item) => picks[item.key]?.id === regret.user?.id) : null;
+  return {
+    headline: winsCost === 0 ? "You matched the optimizer’s projected record." : `${winsCost} projected ${winsCost === 1 ? "win" : "wins"} left on the board.`,
+    strength: strongest ? `${strongest.name} was the anchor: a ${strongest.percentile}th-percentile ${strongest.position} season.` : "The roster was balanced.",
+    weakness: weakest && thinPosition ? `${thinPosition.position} was the softest position group; ${weakest.name} was its lowest relative season at the ${weakest.percentile}th percentile.` : "No clear positional weakness.",
+    regret: regret && regret.gap > .05
+      ? `${regret.user!.name}${slot ? ` at ${slot.label}` : ""} was the costliest choice. ${regret.alternative!.name} was available from that same ${regret.user!.team} ${regret.user!.season} spin and added ${regret.gap.toFixed(1)} season points in the optimal assignment.`
+      : "Your choices were effectively identical to the optimizer’s best assignment.",
+    verdict: winsCost === 0 ? "Elite process. The remaining gap is rounding, not roster construction." : winsCost <= 2 ? "A contender with one meaningful opportunity-cost miss." : "Star power was present, but the roster lost too much value at its weakest slot.",
+  };
+}
+
 function SpinDraft({ seasons }: { seasons: Season[] }) {
   const [scoring, setScoring] = useState<Scoring>("ppr");
   const [mode, setMode] = useState<RosterMode>("classic");
@@ -226,6 +262,7 @@ function SpinDraft({ seasons }: { seasons: Season[] }) {
   const yourPoints = pickedEntries.reduce((sum, entry) => sum + getStats(entry, scoring).total, 0);
   const bestPoints = optimalEntries.reduce((sum, entry) => sum + getStats(entry, scoring).total, 0);
   const efficiency = bestPoints ? Math.round((yourPoints / bestPoints) * 100) : 0;
+  const coach = complete && yours && best ? nflCoach(picks, draws, optimal, slots, scoring, yours, best) : null;
 
   return (
     <section className="draft-section" id="draft">
@@ -289,6 +326,14 @@ function SpinDraft({ seasons }: { seasons: Season[] }) {
             return <div className="combo-row" key={`optimal-${slot.key}`}><span>{slot.label}</span><b>{assignment?.entry.name}</b><small>{assignment?.entry.season} {assignment?.entry.team}</small></div>;
           })}</div>
         </div>
+        {coach && <section className="coach-report">
+          <div className="coach-title"><span>POSTGAME FILM</span><h3>{coach.headline}</h3><p>{coach.verdict}</p></div>
+          <div className="coach-findings">
+            <article><small>WHAT WORKED</small><p>{coach.strength}</p></article>
+            <article><small>BIGGEST WEAKNESS</small><p>{coach.weakness}</p></article>
+            <article><small>COSTLIEST DECISION</small><p>{coach.regret}</p></article>
+          </div>
+        </section>}
         <div className="result-actions"><button onClick={() => reset()}>Draft again</button><button onClick={() => navigator.share ? navigator.share({ title: `My Fantasy GOAT Lab result: ${yours?.wins}-${(yours?.games ?? 0) - (yours?.wins ?? 0)}`, url: location.href }) : navigator.clipboard.writeText(location.href)}>Share result ↗</button></div>
       </div>}
       <p className="algorithm-note">Record model: each real weekly lineup score is converted to win probability against a format-specific historical scoring curve; probabilities are summed and rounded. The optimal roster uses the same draws and scoring rules.</p>
